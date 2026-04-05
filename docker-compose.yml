@@ -1,0 +1,11 @@
+services:
+  tunnel-server:
+    build: .
+    container_name: tunnel-server
+    ports:
+      - "8080:8080"
+      # - "4443:443"
+    environment:
+      - ENV=development
+      - LOG_LEVEL=debug
+    restart: unless-stopped
