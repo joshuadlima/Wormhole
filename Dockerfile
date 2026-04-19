@@ -30,7 +30,7 @@ RUN apk --no-cache add ca-certificates
 COPY --from=builder /app/tunnel-server .
 
 # Expose ports (example)
-EXPOSE 8080
+EXPOSE 8080 9090
 
 # Run
 CMD ["./tunnel-server"]

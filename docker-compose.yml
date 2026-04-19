@@ -4,6 +4,7 @@ services:
     container_name: tunnel-server
     ports:
       - "8080:8080"
+      - "9090:9090"
       # - "4443:443"
     environment:
       - ENV=development
