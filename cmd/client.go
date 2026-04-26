@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -6,9 +6,27 @@ import (
 
 	"github.com/hashicorp/yamux"
 	"github.com/joshuadlima/Wormhole/internal/tunnel"
+	"github.com/spf13/cobra"
 )
 
-func main() {
+var clientCmd = &cobra.Command{
+	Use:   "client",
+	Short: "Start the Wormhole client",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Starting Client...")
+		startClient()
+	},
+}
+
+func init() {
+	// "client" is a subcommand of the root
+	rootCmd.AddCommand(clientCmd)
+
+	// You can add your flags here later!
+	// clientCmd.Flags().StringVarP(&localPort, "local", "l", "4200", "Local port")
+}
+
+func startClient() {
 	// Dial an outbound connection to the server's port 8080
 	serverConn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
