@@ -1,62 +1,56 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 
+	"github.com/hashicorp/yamux"
 	"github.com/joshuadlima/Wormhole/internal/tunnel"
 )
 
 func main() {
-	// Channels to route incoming connections from port 8080
-	controlChan := make(chan net.Conn)
-	dataChan := make(chan net.Conn)
-
-	go listenForClient(controlChan, dataChan)
-	go listenForPublic(controlChan, dataChan)
-
-	// Keep main thread alive
-	select {}
-}
-
-func listenForClient(controlChan chan net.Conn, dataChan chan net.Conn) {
-	listener, _ := net.Listen("tcp", ":8080")
-
-	for {
-		conn, _ := listener.Accept()
-
-		// Read the handshake to see what kind of connection this is
-		reader := bufio.NewReader(conn)
-		handshake, _ := reader.ReadString('\n')
-
-		switch handshake {
-		case "CONTROL\n":
-			controlChan <- conn
-			fmt.Println("Client control connection registered.")
-		case "DATA\n":
-			dataChan <- conn
-		}
+	// Listen for a tcp connection on port 8080 to the client
+	clientListener, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		panic(err)
 	}
-}
+	fmt.Println("Listening on port 8080...")
 
-func listenForPublic(controlChan chan net.Conn, dataChan chan net.Conn) {
-	listener, _ := net.Listen("tcp", ":9090")
+	// block until the client is available
+	conn, err := clientListener.Accept()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Client connected on port 8080...")
 
-	// Wait for the client to register its control connection before accepting public traffic
-	controlConn := <-controlChan
+	// convert it into a yamux session
+	session, err := yamux.Server(conn, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	visitorListener, err := net.Listen("tcp", ":9090")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Listening on port 9090 for visitors...")
 
 	for {
-		// A user's web browser hits 9090
-		publicConn, _ := listener.Accept()
+		// wait for a user to connect to the public port 9090 & establish a tcp session once they do
+		connUser, err := visitorListener.Accept()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Visitor connected on port 9090...")
 
-		// 1. Tell the client to open a new data connection
-		controlConn.Write([]byte("NEW_VISITOR\n"))
+		// create a new yamux stream for this user connection
+		clientStream, err := session.Open()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Yamux client stream opened for visitor...")
 
-		// 2. Wait for the client's new DATA connection to arrive on port 8080
-		dataConn := <-dataChan
-
-		// 3. Bridge the public user to the new data tunnel
-		go tunnel.BridgeConnections(publicConn, dataConn)
+		// bridge the user connection to the client stream in a new goroutine so we can continue accepting new users
+		go tunnel.BridgeConnections(connUser, clientStream)
 	}
 }

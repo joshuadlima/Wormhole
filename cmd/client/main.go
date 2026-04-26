@@ -1,44 +1,44 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 
+	"github.com/hashicorp/yamux"
 	"github.com/joshuadlima/Wormhole/internal/tunnel"
 )
 
 func main() {
-	// 1. Establish the single Control Connection
-	controlConn, err := net.Dial("tcp", "localhost:8080")
+	// Dial an outbound connection to the server's port 8080
+	serverConn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("Dialed in to server on outbound port 8080...")
 
-	// 2. Identify this connection to the server as the Control channel
-	controlConn.Write([]byte("CONTROL\n"))
-	fmt.Println("Control channel established. Waiting for traffic...")
-
-	// 3. Listen for commands from the server
-	scanner := bufio.NewScanner(controlConn)
-	for scanner.Scan() {
-		command := scanner.Text()
-
-		// When the server says "NEW_VISITOR", we spin up a data tunnel!
-		if command == "NEW_VISITOR" {
-			go createDataTunnel()
-		}
+	// convert the connection to a yamux client session
+	serverSession, err := yamux.Client(serverConn, nil)
+	if err != nil {
+		panic(err)
 	}
-}
+	fmt.Println("Converted to yamux client session...")
 
-func createDataTunnel() {
-	// Dial the server and identify as a DATA connection
-	dataConn, _ := net.Dial("tcp", "localhost:8080")
-	dataConn.Write([]byte("DATA\n"))
+	for {
+		// wait until the server side is ready then establish the stream
+		serverStream, err := serverSession.Accept()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Accepted new stream from server...")
 
-	// Dial the local Angular app
-	localConn, _ := net.Dial("tcp", "localhost:4200")
+		// dial in to the local server
+		localConn, err := net.Dial("tcp", "localhost:4200")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Dialed in to local server on port 4200...")
 
-	// Bridge them
-	tunnel.BridgeConnections(dataConn, localConn)
+		// bridge the server stream to the local connection
+		go tunnel.BridgeConnections(serverStream, localConn)
+	}
 }
