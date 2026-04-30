@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var localPort string
 var clientCmd = &cobra.Command{
 	Use:   "client",
 	Short: "Start the Wormhole client",
@@ -22,22 +23,24 @@ func init() {
 	// "client" is a subcommand of the root
 	rootCmd.AddCommand(clientCmd)
 
-	// You can add your flags here later!
-	// clientCmd.Flags().StringVarP(&localPort, "local", "l", "4200", "Local port")
+	// setting the client command flag for the local port to expose
+	clientCmd.Flags().StringVarP(&localPort, "local", "l", "4200", "Local port to expose")
 }
 
 func startClient() {
 	// Dial an outbound connection to the server's port 8080
 	serverConn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 	fmt.Println("Dialed in to server on outbound port 8080...")
 
 	// convert the connection to a yamux client session
 	serverSession, err := yamux.Client(serverConn, nil)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 	fmt.Println("Converted to yamux client session...")
 
@@ -45,16 +48,19 @@ func startClient() {
 		// wait until the server side is ready then establish the stream
 		serverStream, err := serverSession.Accept()
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
 		fmt.Println("Accepted new stream from server...")
 
 		// dial in to the local server
-		localConn, err := net.Dial("tcp", "localhost:4200")
+		localConn, err := net.Dial("tcp", "localhost:"+localPort)
 		if err != nil {
-			panic(err)
+			fmt.Println("Local server is down!", err)
+			serverStream.Close() // Hang up on the visitor
+			continue             // Keep the Wormhole Client alive!
 		}
-		fmt.Println("Dialed in to local server on port 4200...")
+		fmt.Println("Dialed in to local server on port " + localPort + "...")
 
 		// bridge the server stream to the local connection
 		go tunnel.BridgeConnections(serverStream, localConn)
