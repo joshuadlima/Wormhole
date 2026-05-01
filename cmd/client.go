@@ -36,6 +36,13 @@ func startClient() {
 	}
 	fmt.Println("Dialed in to server on outbound port 8080...")
 
+	subdomain := "joshua"
+	_, err = serverConn.Write([]byte(subdomain + "\n"))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	// convert the connection to a yamux client session
 	serverSession, err := yamux.Client(serverConn, nil)
 	if err != nil {
