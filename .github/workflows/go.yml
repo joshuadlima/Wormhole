@@ -1,0 +1,53 @@
+name: Build Wormhole
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    name: Build for ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # OS and Architecture combos
+        include:
+          - goos: linux
+            goarch: amd64
+            output: wormhole-linux-amd64
+          - goos: windows
+            goarch: amd64
+            output: wormhole-windows-amd64.exe
+          - goos: darwin
+            goarch: amd64
+            output: wormhole-mac-intel
+          - goos: darwin
+            goarch: arm64
+            output: wormhole-mac-silicon
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26.1'
+
+    - name: Download Dependencies
+      run: go mod download
+
+    - name: Build Binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      # Compiles the code and places it in a temporary 'dist' folder
+      run: go build -o dist/${{ matrix.output }} main.go
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.output }}
+        path: dist/${{ matrix.output }}
