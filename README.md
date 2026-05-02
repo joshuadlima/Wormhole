@@ -1,8 +1,15 @@
 # Wormhole
 **Wormhole allows you to expose local web servers sitting behind NATs or firewalls to the public internet securely, using multiplexed TCP tunnels. It is designed as a lightweight, single-binary alternative to tools like Ngrok or Cloudflare Tunnels.**
 
+## Installation
+Download the latest standalone binary for your system directly from the links below.
+* **Windows:** [Download wormhole-windows-amd64.exe](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-windows-amd64.exe)
+* **Mac (Apple Silicon):** [Download wormhole-mac-silicon](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-mac-silicon)
+* **Mac (Intel):** [Download wormhole-mac-intel](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-mac-intel)
+* **Linux:** [Download wormhole-linux-amd64](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-linux-amd64)
+
 ## The Wormhole CLI (Usage)
-### 1. Build the binary.
+### 1. Build the binary, or install the latest binary directly from the links above.
 ```bash
     go build -o wormhole main.go
 ```
