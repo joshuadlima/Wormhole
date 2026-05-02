@@ -1,4 +1,4 @@
-name: Build Wormhole
+name: Build & Auto-Release Wormhole
 
 on:
   push:
@@ -10,6 +10,11 @@ jobs:
   build:
     name: Build for ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
+
+    # For ncipollo action to create releases
+    permissions:
+          contents: write
+
     strategy:
       matrix:
         # OS and Architecture combos
@@ -46,8 +51,15 @@ jobs:
       # Compiles the code and places it in a temporary 'dist' folder
       run: go build -o dist/${{ matrix.output }} main.go
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+    - name: Create Release
+      uses: ncipollo/release-action@v1
       with:
-        name: ${{ matrix.output }}
-        path: dist/${{ matrix.output }}
+        artifacts: dist/${{ matrix.output }}
+        # Custom dynamic versioning
+        tag: v1.${{github.run_number}}.${{github.run_attempt}}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+        # For our matrix builds:
+        allowUpdates: true 
+        omitBodyDuringUpdate: true
+        generateReleaseNotes: true
