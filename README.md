@@ -44,5 +44,11 @@ Open your browser and navigate to: http://joshua.localhost:443 (or your server's
 
 ### 3. HTTP Reverse Proxy (Layer 7)
 - The Server concurrently runs an HTTP Listener (default Port 443).
-- When a web visitor makes an HTTP request, the router parses the Host header, looks up the corresponding yamux session in a thread-safe map, and opens a new binary stream.
+- When a web visitor makes an HTTP request, the router parses the Host header, extracts the subdomain, looks up the corresponding yamux session in a thread-safe map, and opens a new binary stream.
 - Instead of opening a new internet connection, the httputil.ReverseProxy is injected with a custom DialContext that forces all plain-text HTTP data directly down the multiplexed Yamux stream.
+
+### 4. TLS certificate issuance
+- Adding TLS is important for a reverse-tunnel since several web features, packages, and services wouldn't work on an insecure page.
+- To get a certificate for the VPS, we can go for the HTTP_01 challenge or the DNS_01 challenge.
+- HTTP_01 will require a new certificate for each subdomain, and this will hit the certificate per domain rate limits of the Certificate Authority on scale. (50/week for Let's Encrypt)
+- DNS_01 gets us a wildcard certificate valid for all subdomains, but it works by adding an entry into the domain provider's DNS record, accessing it via the provider's API (eg. Cloudflare)
