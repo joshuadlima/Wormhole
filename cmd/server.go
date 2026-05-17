@@ -14,9 +14,16 @@ var serverCmd = &cobra.Command{
 		fmt.Println("Starting Server...")
 
 		tunnelServer := server.NewTunnelServer("443")
-		err := tunnelServer.Start()
-		if err != nil {
-			fmt.Println(err)
+		// Get the TLS certificate before starting the server to ensure it's ready to serve HTTPS traffic.
+		err1 := tunnelServer.GetTLSCertificate()
+		if err1 != nil {
+			fmt.Println("Error getting TLS certificate:", err1)
+			return
+		}
+
+		err2 := tunnelServer.Start()
+		if err2 != nil {
+			fmt.Println("Error starting server:", err2)
 		}
 	},
 }

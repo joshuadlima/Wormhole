@@ -3,14 +3,18 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"strings"
 	"sync"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/hashicorp/yamux"
 	"github.com/joshuadlima/Wormhole/internal/tunnel"
+	"github.com/libdns/cloudflare"
 )
 
 // Struct that holds the state of the server and its tunnels
@@ -170,4 +174,40 @@ func (s *TunnelServer) yamuxSessionCleanup(name string, sess *yamux.Session) err
 	fmt.Printf("Client %s disconnected. Freeing subdomain.\n", name)
 	s.freeSubdomain(name)
 	return nil
+}
+
+func (s *TunnelServer) GetTLSCertificate() error {
+	// Initialize the DNS Provider with its API credentials (generate an API token with DNS Edit permissions)
+	provider := &cloudflare.Provider{
+		APIToken: os.Getenv("CLOUDFLARE_API_TOKEN"),
+	}
+
+	// Tell CertMagic to use the DNS-01 challenge and pass it the provider.
+	certmagic.DefaultACME.DNS01Solver = &certmagic.DNS01Solver{
+		DNSManager: certmagic.DNSManager{
+			DNSProvider: provider,
+		},
+	}
+
+	// Set the email (Required by Let's Encrypt for expiry notices/account recovery)
+	certmagic.DefaultACME.Email = os.Getenv("EMAIL_ID")
+
+	// Due to strict Let's Encrypt rate limits, use the staging CA for testing
+	// certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
+
+	// Define domains - wildcard only covers subdomains
+	domains := strings.Split(os.Getenv("DOMAINS"), ",")
+
+	// Define the reverse proxy or mux router
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Tunnel server active and secured!"))
+	})
+
+	log.Printf("Starting secure server for %v...", domains)
+
+	// Start the server
+	err := certmagic.HTTPS(domains, mux)
+	return err
 }
