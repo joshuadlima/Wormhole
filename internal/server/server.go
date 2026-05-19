@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -33,14 +33,28 @@ func NewTunnelServer(publicPort string) *TunnelServer {
 }
 
 func (s *TunnelServer) Start() error {
-	listener, err := net.Listen("tcp", ":4443")
+	// 1. Get the TLS configuration from CertMagic for the domains
+	tlsConfig, err := certmagic.TLS(strings.Split(os.Getenv("DOMAINS"), ","))
+
 	if err != nil {
 		return err
 	}
-	fmt.Println("Server started on port 4443...")
 
-	// Start the HTTP server in a separate goroutine to handle incoming web traffic and route it to the correct tunnels based on subdomain.
-	go http.ListenAndServe(":"+s.publicPort, s)
+	// listener, err := net.Listen("tcp", ":4443")
+	listener, err := tls.Listen("tcp", ":4443", tlsConfig)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Secure server started on port 4443...")
+
+	// Start the HTTPS server in a separate goroutine to handle incoming web traffic and route it to the correct tunnels based on subdomain.
+	webServer := &http.Server{
+		Addr:      ":443",
+		Handler:   s,
+		TLSConfig: tlsConfig,
+	}
+
+	webServer.ListenAndServeTLS("", "")
 
 	for {
 		conn, err := listener.Accept()
@@ -176,7 +190,7 @@ func (s *TunnelServer) yamuxSessionCleanup(name string, sess *yamux.Session) err
 	return nil
 }
 
-func (s *TunnelServer) GetTLSCertificate() error {
+func (s *TunnelServer) GetTLSCertificate() {
 	// Initialize the DNS Provider with its API credentials (generate an API token with DNS Edit permissions)
 	provider := &cloudflare.Provider{
 		APIToken: os.Getenv("CLOUDFLARE_API_TOKEN"),
@@ -193,21 +207,6 @@ func (s *TunnelServer) GetTLSCertificate() error {
 	certmagic.DefaultACME.Email = os.Getenv("EMAIL_ID")
 
 	// Due to strict Let's Encrypt rate limits, use the staging CA for testing
-	// certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
-	certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
-
-	// Define domains - wildcard only covers subdomains
-	domains := strings.Split(os.Getenv("DOMAINS"), ",")
-
-	// Define the reverse proxy or mux router
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Tunnel server active and secured!"))
-	})
-
-	log.Printf("Starting secure server for %v...", domains)
-
-	// Start the server
-	err := certmagic.HTTPS(domains, mux)
-	return err
+	certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	// certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
 }

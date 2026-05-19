@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/hashicorp/yamux"
 	"github.com/joshuadlima/Wormhole/internal/tunnel"
@@ -28,7 +29,7 @@ func NewTunnelClient(localPort string, subdomain string) *TunnelClient {
 func (s *TunnelClient) Start() error {
 
 	// Dial an outbound connection to the server's port 4443
-	serverConn, err := net.Dial("tcp", "localhost:4443")
+	serverConn, err := net.Dial("tcp", os.Getenv("SERVER_HOST")+":4443")
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func (s *TunnelClient) Start() error {
 		fmt.Println("Bummer! That subdomain is already in use. Try another one.")
 		return nil
 	} else if response == "OK" {
-		fmt.Println("Your client is live on: http://" + s.subdomain + ".localhost:443/")
+		fmt.Println("Your client is live on: http://" + s.subdomain + "." + os.Getenv("SERVER_HOST") + ":443/")
 	}
 
 	// convert the connection to a yamux client session
