@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -28,8 +29,12 @@ func NewTunnelClient(localPort string, subdomain string) *TunnelClient {
 // 3. We attach methods to the Struct (Notice the `s *TunnelClient` receiver)
 func (s *TunnelClient) Start() error {
 
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
 	// Dial an outbound connection to the server's port 4443
-	serverConn, err := net.Dial("tcp", os.Getenv("SERVER_HOST")+":4443")
+	serverConn, err := tls.Dial("tcp", os.Getenv("SERVER_HOST")+":4443", tlsConfig)
 	if err != nil {
 		return err
 	}

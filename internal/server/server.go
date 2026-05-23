@@ -54,7 +54,11 @@ func (s *TunnelServer) Start() error {
 		TLSConfig: tlsConfig,
 	}
 
-	webServer.ListenAndServeTLS("", "")
+	go func() {
+		if err := webServer.ListenAndServeTLS("", ""); err != nil {
+			fmt.Println("Web server crashed:", err)
+		}
+	}()
 
 	for {
 		conn, err := listener.Accept()
