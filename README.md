@@ -48,7 +48,24 @@ Open your browser and navigate to: http://joshua.localhost:443 (or your server's
 - Instead of opening a new internet connection, the httputil.ReverseProxy is injected with a custom DialContext that forces all plain-text HTTP data directly down the multiplexed Yamux stream.
 
 ### 4. TLS certificate issuance
-- Adding TLS is important for a reverse-tunnel since several web features, packages, and services wouldn't work on an insecure page.
-- To get a certificate for the VPS, we can go for the HTTP_01 challenge or the DNS_01 challenge.
-- HTTP_01 will require a new certificate for each subdomain, and this will hit the certificate per domain rate limits of the Certificate Authority on scale. (50/week for Let's Encrypt)
-- DNS_01 gets us a wildcard certificate valid for all subdomains, but it works by adding an entry into the domain provider's DNS record, accessing it via the provider's API (eg. Cloudflare)
+- Adding TLS is important for a reverse-tunnel since several web features, packages, and services wouldn't work on an insecure page. The certmagic package has been used to automate the obtaining and renewal of TLS certificates.
+
+<details>
+<summary>Click to dive deeper.</summary>
+
+  <ol>
+    <li>
+      <strong>Understanding the types of challenges and their working.</strong>
+      <ul>
+        <li>To get a certificate for the VPS, we can go for the HTTP_01 challenge or the DNS_01 challenge (there are others as well).</li>
+        <li>HTTP_01 will require a new certificate for each subdomain, and this will hit the certificate per-domain rate limits of the Certificate Authority on scale. (50/week for Let's Encrypt).</li>
+        <li>DNS_01 gets us a wildcard certificate valid for all subdomains, but it works by adding an entry into the domain provider's DNS record, accessing it via the provider's API (eg. Cloudflare). Since an access of this kind would require administrator privileges, it serves as a good proof of domain ownership. </li>
+      </ul>
+    </li>
+  </ol>
+  
+</details>
+
+- 
+- 
+- 
