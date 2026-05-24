@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/hashicorp/yamux"
 	"github.com/joshuadlima/Wormhole/internal/tunnel"
@@ -29,7 +30,35 @@ func NewTunnelClient(localPort string, subdomain string, serverHost string) *Tun
 
 // 3. We attach methods to the Struct (Notice the `s *TunnelClient` receiver)
 func (s *TunnelClient) Start() error {
+	attempt := 0
+	maxBackoff := 30 * time.Second
 
+	for {
+		fmt.Printf("Attempting to connect (Try %d)...\n", attempt+1)
+
+		err := s.connectAndServe()
+
+		// If the connection died or failed to start
+		if err != nil {
+			fmt.Printf("Tunnel disconnected: %v\n", err)
+		} else {
+			fmt.Println("Tunnel closed cleanly.")
+		}
+
+		// Calculate Exponential Backoff
+		attempt++
+		backoffDuration := time.Duration(1<<attempt) * time.Second
+
+		if backoffDuration > maxBackoff {
+			backoffDuration = maxBackoff
+		}
+
+		fmt.Printf("Reconnecting in %v...\n", backoffDuration)
+		time.Sleep(backoffDuration)
+	}
+}
+
+func (s *TunnelClient) connectAndServe() error {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
@@ -39,6 +68,10 @@ func (s *TunnelClient) Start() error {
 	if err != nil {
 		return err
 	}
+
+	// Ensure the connection is closed when this fxn exits
+	defer serverConn.Close()
+
 	fmt.Println("Dialed in to server on outbound port 4443...")
 
 	// Randomize the subdomain if not provided by the user
@@ -65,6 +98,9 @@ func (s *TunnelClient) Start() error {
 	if err != nil {
 		return err
 	}
+
+	defer serverSession.Close() // Ensure the session is closed when this fxn exits
+
 	fmt.Println("Converted to yamux client session...")
 
 	for {

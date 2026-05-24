@@ -29,8 +29,8 @@ func init() {
 	rootCmd.AddCommand(clientCmd)
 
 	clientCmd.Flags().StringVarP(&localPort, "local", "l", "", "Local port to expose. (required) eg. 4200)")
-	clientCmd.Flags().StringVarP(&subdomain, "subdomain", "sd", "", "Subdomain to use. (randomized if not provided) eg. myapp)")
-	clientCmd.Flags().StringVarP(&serverHost, "server", "sh", "localhost", "Server host to connect to eg. myserver.com")
+	clientCmd.Flags().StringVarP(&subdomain, "subdomain", "s", "", "Subdomain to use. (randomized if not provided) eg. myapp)")
+	clientCmd.Flags().StringVarP(&serverHost, "server", "r", "localhost", "Server host to connect to eg. myserver.com")
 
 	clientCmd.MarkFlagRequired("local")
 }
