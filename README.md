@@ -33,7 +33,7 @@ If you leave the --subdomain flag blank, Wormhole will automatically generate a 
 Open your browser and navigate to: http://joshua.localhost:443 (or your server's public IP/Domain).
 
 ## Design & Architecture
--- Architecture diagram -- 
+<img width="1584" height="1232" alt="Wormhole diagrams(1)" src="https://github.com/user-attachments/assets/a6bfe769-fbd9-402b-bafc-dfd6244928e6" />
 
 ### 1. TCP Multiplexing (Yamux)
 - Packs thousands of logical streams over a single network connection. Without multiplexing, we would need to establish several individual TCP network connections, which could result in resource exhaustion.
