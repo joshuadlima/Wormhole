@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/hashicorp/yamux"
@@ -95,7 +96,7 @@ func (s *TunnelServer) handleClient(conn net.Conn) {
 	}
 
 	// Yamux setup
-	yamuxSession, err := yamux.Server(conn, nil)
+	yamuxSession, err := yamux.Server(conn, &yamux.Config{EnableKeepAlive: true, KeepAliveInterval: 30 * time.Second})
 	if err != nil {
 		conn.Write([]byte("SERVER: Error - Invalid yamux handshake\n"))
 		fmt.Println("Warning: invalid yamux handshake:", err)

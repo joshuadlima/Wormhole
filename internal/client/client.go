@@ -94,7 +94,7 @@ func (s *TunnelClient) connectAndServe() error {
 	}
 
 	// convert the connection to a yamux client session
-	serverSession, err := yamux.Client(serverConn, nil)
+	serverSession, err := yamux.Client(serverConn, &yamux.Config{EnableKeepAlive: true, KeepAliveInterval: 30 * time.Second})
 	if err != nil {
 		return err
 	}
