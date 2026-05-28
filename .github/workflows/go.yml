@@ -53,15 +53,33 @@ jobs:
       # Compiles the code and places it in a temporary 'dist' folder
       run: go build -o dist/${{ matrix.output }} ./cmd/client/main.go
 
+    # Upload the compiled binary as a GitHub artifact
+    - name: Upload Binary Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.output }}
+        path: dist/${{ matrix.output }}
+
+  release:
+    name: Download all artifacts and create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    permissions:
+      contents: write
+    
+    steps:
+    # Download all artifacts uploaded by the build jobs into a folder
+    - name: Download All Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: binaries/
+        merge-multiple: true # Flattens the binaries into a single directory
+
     - name: Create Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: dist/${{ matrix.output }}
-        # Custom dynamic versioning
+        artifacts: "binaries/*" # Upload all downloaded binaries at once
         tag: v1.${{github.run_number}}.${{github.run_attempt}}
         token: ${{ secrets.GITHUB_TOKEN }}
-        
-        # For our matrix builds:
-        allowUpdates: true 
-        omitBodyDuringUpdate: true
         generateReleaseNotes: true
