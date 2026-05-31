@@ -14,17 +14,19 @@ import (
 
 // Struct that holds the state of the client
 type TunnelClient struct {
-	localPort  string
-	subdomain  string
-	serverHost string
+	localPort   string
+	subdomain   string
+	serverHost  string
+	TunnelReady chan string // Channel to signal when the tunnel is ready
 }
 
 // Constructor
 func NewTunnelClient(localPort string, subdomain string, serverHost string) *TunnelClient {
 	return &TunnelClient{
-		localPort:  localPort,
-		subdomain:  subdomain,
-		serverHost: serverHost,
+		localPort:   localPort,
+		subdomain:   subdomain,
+		serverHost:  serverHost,
+		TunnelReady: make(chan string, 1), // Buffered channel to avoid blocking
 	}
 }
 
@@ -85,16 +87,24 @@ func (s *TunnelClient) connectAndServe() error {
 	// Read the server's response to the handshake - 2 way handshake to confirm the subdomain is available before proceeding.
 	response, err := tunnel.ReadHandshake(serverConn)
 	if err != nil {
+		close(s.TunnelReady) // Signal failure by closing the channel
 		return err
 	} else if response == "ERROR: Subdomain taken" {
 		fmt.Println("Bummer! That subdomain is already in use. Try another one.")
+		close(s.TunnelReady) // Signal failure by closing the channel
 		return nil
 	} else if response == "OK" {
-		fmt.Println("Your client is live on: http://" + s.subdomain + "." + s.serverHost + ":443/")
+		liveUrl := fmt.Sprintf("https://%s.%s/", s.subdomain, s.serverHost)
+		fmt.Printf("Tunnel is ready at %s\n", liveUrl)
+		s.TunnelReady <- liveUrl // Signal that the tunnel is ready by sending the live URL through the channel
 	}
 
 	// convert the connection to a yamux client session
-	serverSession, err := yamux.Client(serverConn, &yamux.Config{EnableKeepAlive: true, KeepAliveInterval: 30 * time.Second})
+	config := yamux.DefaultConfig()
+	config.EnableKeepAlive = true
+	config.KeepAliveInterval = 30 * time.Second
+
+	serverSession, err := yamux.Client(serverConn, config)
 	if err != nil {
 		return err
 	}

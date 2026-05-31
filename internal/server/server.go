@@ -96,7 +96,11 @@ func (s *TunnelServer) handleClient(conn net.Conn) {
 	}
 
 	// Yamux setup
-	yamuxSession, err := yamux.Server(conn, &yamux.Config{EnableKeepAlive: true, KeepAliveInterval: 30 * time.Second})
+	config := yamux.DefaultConfig()
+	config.EnableKeepAlive = true
+	config.KeepAliveInterval = 30 * time.Second
+
+	yamuxSession, err := yamux.Server(conn, config)
 	if err != nil {
 		conn.Write([]byte("SERVER: Error - Invalid yamux handshake\n"))
 		fmt.Println("Warning: invalid yamux handshake:", err)
