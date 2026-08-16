@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -20,16 +21,21 @@ import (
 
 // Struct that holds the state of the server and its tunnels
 type TunnelServer struct {
-	mu         sync.RWMutex
-	tunnels    map[string]*yamux.Session
-	publicPort string
+	mu          sync.RWMutex
+	tunnels     map[string]*yamux.Session
+	publicPort  string
+	ctx         context.Context
+	ServerReady chan string // Channel to signal when the server is ready to accept connections
+	readyOnce   sync.Once
 }
 
 // Constructor
-func NewTunnelServer(publicPort string) *TunnelServer {
+func NewTunnelServer(publicPort string, ctx context.Context) *TunnelServer {
 	return &TunnelServer{
-		tunnels:    make(map[string]*yamux.Session),
-		publicPort: publicPort,
+		tunnels:     make(map[string]*yamux.Session),
+		publicPort:  publicPort,
+		ctx:         ctx,
+		ServerReady: make(chan string),
 	}
 }
 
@@ -50,21 +56,43 @@ func (s *TunnelServer) Start() error {
 
 	// Start the HTTPS server in a separate goroutine to handle incoming web traffic and route it to the correct tunnels based on subdomain.
 	webServer := &http.Server{
-		Addr:      ":443",
-		Handler:   s,
-		TLSConfig: tlsConfig,
+		Addr:              ":443",
+		Handler:           s,
+		TLSConfig:         tlsConfig,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	go func() {
-		if err := webServer.ListenAndServeTLS("", ""); err != nil {
+		<-s.ctx.Done()
+		fmt.Println("Shutting down...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		webServer.Shutdown(shutdownCtx) // drains in-flight HTTP requests
+		listener.Close()                // unblocks Accept below
+	}()
+
+	go func() {
+		if err := webServer.ListenAndServeTLS("", ""); err == http.ErrServerClosed {
+			fmt.Println("Web server stopped:", err)
+		} else if err != nil {
 			fmt.Println("Web server crashed:", err)
+			listener.Close() // half a server is useless, bring the whole thing down
 		}
 	}()
+
+	s.readyOnce.Do(func() {
+		s.ServerReady <- "Server is ready"
+	})
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Warning: bad connection:", err)
+			if errors.Is(err, net.ErrClosed) {
+				return nil // listener is gone; stop
+			}
+			fmt.Println("Warning: transient accept error:",
+			 err)
 			continue
 		}
 
@@ -78,7 +106,9 @@ func (s *TunnelServer) Start() error {
 func (s *TunnelServer) handleClient(conn net.Conn) {
 
 	// Read the handshake before the Yamux session is established
+	conn.SetReadDeadline(time.Now().Add(10 * time.Second)) // Set a read deadline for the handshake
 	subdomain, err := tunnel.ReadHandshake(conn)
+	conn.SetReadDeadline(time.Time{}) // Clear the read deadline after the handshake
 	if err != nil {
 		fmt.Println("Handshake failed:", err)
 		conn.Close()
@@ -126,7 +156,7 @@ func (s *TunnelServer) handleClient(conn net.Conn) {
 func (s *TunnelServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Extract the subdomain from the Host header
 	hostParts := strings.Split(r.Host, ".")
-	if len(hostParts) < 2 {
+	if len(hostParts) < 3 {
 		http.Error(w, "Invalid host header", http.StatusBadRequest)
 		return
 	}
@@ -175,31 +205,28 @@ func (s *TunnelServer) acquireSubdomainIfAvailable(name string) bool {
 }
 
 // Registers the subdomain with the actual session once it's established
-func (s *TunnelServer) registerSubdomain(name string, session *yamux.Session) error {
+func (s *TunnelServer) registerSubdomain(name string, session *yamux.Session) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.tunnels[name] = session
-	return nil
 }
 
 // Frees the subdomain so others can use it once the client disconnects
-func (s *TunnelServer) freeSubdomain(name string) error {
+func (s *TunnelServer) freeSubdomain(name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.tunnels, name)
-	return nil
 }
 
 // Helper function to watch for session closure and free the subdomain
-func (s *TunnelServer) yamuxSessionCleanup(name string, sess *yamux.Session) error {
+func (s *TunnelServer) yamuxSessionCleanup(name string, sess *yamux.Session) {
 	<-sess.CloseChan()
 
 	fmt.Printf("Client %s disconnected. Freeing subdomain.\n", name)
 	s.freeSubdomain(name)
-	return nil
 }
 
-func (s *TunnelServer) GetTLSCertificate() {
+func (s *TunnelServer) ConfigureACMEDefaults() {
 	// Initialize the DNS Provider with its API credentials (generate an API token with DNS Edit permissions)
 	provider := &cloudflare.Provider{
 		APIToken: os.Getenv("CLOUDFLARE_API_TOKEN"),
@@ -215,7 +242,9 @@ func (s *TunnelServer) GetTLSCertificate() {
 	// Set the email (Required by Let's Encrypt for expiry notices/account recovery)
 	certmagic.DefaultACME.Email = os.Getenv("EMAIL_ID")
 
-	// Due to strict Let's Encrypt rate limits, use the staging CA for testing
-	certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
-	// certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
+	if os.Getenv("PRODUCTION") == "true" {
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptProductionCA
+	} else {
+		certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+	}
 }
