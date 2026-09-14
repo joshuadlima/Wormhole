@@ -70,3 +70,9 @@ Open your browser and navigate to: http://joshua.localhost:443 (or your server's
 ### 5. Client-side backoff logic & Ghost connection handling
 - Several network hiccups and internet issues could cause the TCP connection to drop. In such cases, we shouldn't make the client reconnect manually. We thus wrap the connection logic in a loop with a exponential backoff retry mechanism so that the connection can retry and fix itself.
 - In cases where the internet or wifi suddenly drops, the client might not get a chance to communicate the disconnect with the VPS, and the connection will still exist as a Ghost connection. We thus use yamux keepalives (ping-pong mechanism) on both the client and the server end so that the connections are always in sync.
+
+
+### 6. Testing Plan (real pain)
+- The straightforward plan was to test the number of concurrent tunnels a standard server can handle and how much data can flow through it.
+- This is achieved by a custom Go script to ramp up and do a load test for active tunnels and k6 for the data flow test.
+- The load test and the main server were run of seperate VPSs in the same region (to reduce network latency and noise)
