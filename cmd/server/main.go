@@ -15,6 +15,8 @@ import (
 func main() {
 	godotenv.Load()
 
+	var debugAddr string
+
 	var rootCmd = &cobra.Command{
 		Use:   "wormhole-server",
 		Short: "Start the Wormhole server",
@@ -32,6 +34,13 @@ func main() {
 
 			// Configure the ACME defaults before starting the server to ensure it's ready to serve HTTPS traffic.
 			tunnelServer.ConfigureACMEDefaults()
+
+			// Diagnostics for load testing. Loopback only by default - pprof
+			// must not be publicly reachable.
+			if debugAddr != "" {
+				tunnelServer.StartDebugServer(debugAddr)
+			}
+
 			go func() {
 				errCh <- tunnelServer.Start()
 			}()
@@ -55,6 +64,9 @@ func main() {
 			fmt.Println("Shut down gracefully.")
 		},
 	}
+
+	rootCmd.Flags().StringVar(&debugAddr, "debug-addr", "127.0.0.1:6060",
+		"Address for the /metrics and pprof diagnostics listener. Keep this on loopback; empty disables it.")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

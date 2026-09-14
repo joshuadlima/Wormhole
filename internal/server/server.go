@@ -171,7 +171,7 @@ func (s *TunnelServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Tunnel '%s' not found or offline", subdomain), http.StatusNotFound)
 		return
 	}
-
+  
 	// Create a HTTP Reverse Proxy to forward the request to the correct Yamux stream
 	httpReverseProxy := &httputil.ReverseProxy{
 		Rewrite: func(req *httputil.ProxyRequest) {

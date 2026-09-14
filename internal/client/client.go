@@ -141,10 +141,28 @@ func (s *TunnelClient) connectAndServe() (bool, error) {
 
 	fmt.Println("Converted to yamux client session...")
 
+	// Accept() below blocks with no context awareness, so a cancelled context
+	// would otherwise leave the tunnel connected until the process exits.
+	// Closing the session is what unblocks it.
+	sessionDone := make(chan struct{})
+	defer close(sessionDone)
+	go func() {
+		select {
+		case <-s.Context.Done():
+			serverSession.Close()
+		case <-sessionDone:
+		}
+	}()
+
 	for {
 		// wait until the server side is ready then establish the stream
 		serverStream, err := serverSession.Accept()
 		if err != nil {
+			// A cancelled context closed the session on purpose: that is a
+			// clean shutdown, not a connection failure to back off and retry.
+			if s.Context.Err() != nil {
+				return true, nil
+			}
 			return true, err
 		}
 		fmt.Println("Accepted new stream from server...")
