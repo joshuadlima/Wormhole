@@ -43,6 +43,12 @@ const (
 
 var logger = log.New(os.Stderr, "[loadtest] ", log.Ltime)
 
+// metricsClient must have a timeout. Without one a single stalled request -
+// easy to hit through an ssh forward, where a half-open channel leaves a
+// pooled connection that never returns - blocks the sampler goroutine inside
+// its loop body forever, and the time series just stops with no error.
+var metricsClient = &http.Client{Timeout: 5 * time.Second}
+
 type config struct {
 	serverHost  string
 	tunnels     int
@@ -120,12 +126,22 @@ func main() {
 		defer close(stopDone)
 		ticker := time.NewTicker(sampleInterval)
 		defer ticker.Stop()
+		failures := 0
 		for {
 			select {
 			case <-ticker.C:
-				if m, err := fetchMetrics(cfg.metricsURL); err == nil {
-					samples = append(samples, sample{elapsed: time.Since(start), phase: phase.Load().(string), metrics: m})
+				m, err := fetchMetrics(cfg.metricsURL)
+				if err != nil {
+					// A dropped sample just leaves a gap, but a *run* of them
+					// means the time series is silently dead - say so.
+					failures++
+					if failures == 1 || failures%10 == 0 {
+						logger.Printf("warning: sample failed (%d so far): %v", failures, err)
+					}
+					continue
 				}
+				failures = 0
+				samples = append(samples, sample{elapsed: time.Since(start), phase: phase.Load().(string), metrics: m})
 			case <-stop:
 				return
 			}
@@ -313,7 +329,7 @@ func verify(results []tunnelResult) {
 
 func fetchMetrics(metricsURL string) (serverMetrics, error) {
 	var m serverMetrics
-	resp, err := http.Get(metricsURL)
+	resp, err := metricsClient.Get(metricsURL)
 	if err != nil {
 		return m, err
 	}
@@ -390,6 +406,10 @@ func writeResultsCSV(path string, results []tunnelResult) {
 }
 
 func writeMetricsCSV(path string, samples []sample) {
+	if len(samples) == 0 {
+		logger.Printf("warning: no server metrics were sampled - the time series is empty")
+	}
+
 	file, err := os.Create(path)
 	if err != nil {
 		logger.Printf("warning: could not write %s: %v", path, err)
