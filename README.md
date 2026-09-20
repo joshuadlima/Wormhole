@@ -73,6 +73,7 @@ Open your browser and navigate to: http://joshua.localhost:443 (or your server's
 
 
 ### 6. Testing Plan (real pain)
+<img width="3456" height="1008" alt="Wormhole diagrams(3)" src="https://github.com/user-attachments/assets/a7a05134-665e-45e4-8638-e3713cf46d97" />
 - The straightforward plan was to test the number of concurrent tunnels a standard server can handle and how much data can flow through it.
 - This is achieved by a custom Go script to ramp up and do a load test for active tunnels and k6 for the data flow test.
 - The load test and the main server were run of seperate VPSs in the same region (to reduce network latency and noise)
