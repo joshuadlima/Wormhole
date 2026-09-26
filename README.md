@@ -77,3 +77,29 @@ Open your browser and navigate to: http://joshua.localhost:443 (or your server's
 - The straightforward plan was to test the number of concurrent tunnels a standard server can handle and how much data can flow through it.
 - This is achieved by a custom Go script to ramp up and do a load test for active tunnels and k6 for the data flow test.
 - The load test and the main server were run of seperate VPSs in the same region (to reduce network latency and noise)
+
+<details>
+<summary>Transport Bug Discovery</summary>
+| elapsed_seconds | phase | goroutines | heap_alloc_bytes | tunnels | tunnels_active |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 76.002 | hold | 812 | 4922616 | 200 | 200 |
+| 77.002 | hold | 812 | 4934616 | 200 | 200 |
+| 78.003 | hold | 812 | 4946616 | 200 | 200 |
+| 79.003 | hold | 812 | 4958616 | 200 | 200 |
+| 80.003 | hold | 812 | 4970616 | 200 | 200 |
+| 81.002 | verify | 876 | 6338264 | 200 | 200 |
+| 82.002 | verify | 954 | 8034816 | 200 | 200 |
+| 83.002 | verify | 1036 | 9533648 | 200 | 200 |
+| 84.003 | verify | 1118 | 10835960 | 200 | 200 |
+| 85.002 | verify | 1198 | 11418168 | 200 | 200 |
+  <ol>
+    <li>
+      <strong>Understanding the types of challenges and their working.</strong>
+      <ul>
+        <li></li>
+        <li>HTTP_01 will require a new certificate for each subdomain, and this will hit the certificate per-domain rate limits of the Certificate Authority on scale. (50/week for Let's Encrypt).</li>
+      </ul>
+    </li>
+  </ol>
+  
+</details>
