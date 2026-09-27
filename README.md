@@ -74,10 +74,11 @@ Open your browser and navigate to: http://joshua.localhost:443 (or your server's
 
 ### 6. Testing Plan (real pain)
 <img width="3456" height="1024" alt="Wormhole diagrams(4)" src="https://github.com/user-attachments/assets/dbff950d-2733-4a8c-9e03-cbfba2475fdd" />
-- The straightforward plan was to test the number of concurrent tunnels a standard server can handle and how much data can flow through it.
-- This is achieved by a custom Go script to ramp up and do a load test for active tunnels and k6 for the data flow test.
-- The load test and the main server were run of seperate VPSs in the same region (to reduce network latency and noise)
-
+<ul>
+	<li>The straightforward plan was to test the number of concurrent tunnels a standard server can handle and how much data can flow through it.</li>
+	<li>This is achieved by 2 test harnesses: a custom Go script to ramp up and do a load test for number of active tunnels and k6 for the data flow test.</li>
+	<li>The load test and the main server were run on seperate VPSes in the same region (to reduce network latency and noise)</li>
+</ul>
 
 <details>
 <summary>Transport Bug & Goroutine leak Discovery</summary>
