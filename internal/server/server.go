@@ -19,10 +19,46 @@ import (
 	"github.com/libdns/cloudflare"
 )
 
+// tunnelEntry is one registered tunnel: its yamux session and the reverse
+// proxy that forwards requests down it. The proxy's Transport is a connection
+// pool, so it must live as long as the tunnel - building one per request
+// abandoned a pooled connection (an open stream and two goroutines) on every
+// request until the session closed.
+type tunnelEntry struct {
+	session   *yamux.Session
+	proxy     *httputil.ReverseProxy
+	transport *http.Transport
+}
+
+func newTunnelEntry(session *yamux.Session) *tunnelEntry {
+	transport := &http.Transport{
+		// Custom DialContext to route the HTTP request through the Yamux session instead of the normal network stack
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return session.Open()
+		},
+		// Every request to a tunnel shares one pool key, so this caps how many
+		// idle streams a tunnel keeps; extras are closed when returned.
+		MaxIdleConnsPerHost: 32,
+		// A zero-value Transport never expires idle connections.
+		IdleConnTimeout: 90 * time.Second,
+	}
+
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(req *httputil.ProxyRequest) {
+			// Ensure the request looks like a standard HTTP request before sending it down the tunnel
+			req.Out.URL.Scheme = "http"
+			req.Out.URL.Host = req.In.Host
+		},
+		Transport: transport,
+	}
+
+	return &tunnelEntry{session: session, proxy: proxy, transport: transport}
+}
+
 // Struct that holds the state of the server and its tunnels
 type TunnelServer struct {
 	mu          sync.RWMutex
-	tunnels     map[string]*yamux.Session
+	tunnels     map[string]*tunnelEntry // nil value = subdomain reserved, session not yet registered
 	publicPort  string
 	ctx         context.Context
 	ServerReady chan string // Channel to signal when the server is ready to accept connections
@@ -32,7 +68,7 @@ type TunnelServer struct {
 // Constructor
 func NewTunnelServer(publicPort string, ctx context.Context) *TunnelServer {
 	return &TunnelServer{
-		tunnels:     make(map[string]*yamux.Session),
+		tunnels:     make(map[string]*tunnelEntry),
 		publicPort:  publicPort,
 		ctx:         ctx,
 		ServerReady: make(chan string),
@@ -140,13 +176,13 @@ func (s *TunnelServer) handleClient(conn net.Conn) {
 		s.freeSubdomain(subdomain)
 
 		return
-	} else {
-		// Associate the subdomain with the session
-		s.registerSubdomain(subdomain, yamuxSession)
 	}
 
+	// Associate the subdomain with the session
+	entry := s.registerSubdomain(subdomain, yamuxSession)
+
 	// Yamux session cleanup watchdog - frees the subdomain when the client disconnects
-	go s.yamuxSessionCleanup(subdomain, yamuxSession)
+	go s.yamuxSessionCleanup(subdomain, entry)
 }
 
 // ServeHTTP routes incoming web traffic to the correct Yamux tunnel
@@ -162,32 +198,17 @@ func (s *TunnelServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	subdomain := hostParts[0]
 
-	// Check if a  Yamux session exists for the subdomain
+	// Check if a Yamux session exists for the subdomain
 	s.mu.RLock()
-	session, exists := s.tunnels[subdomain]
+	entry, exists := s.tunnels[subdomain]
 	s.mu.RUnlock()
 
-	if !exists || session == nil {
+	if !exists || entry == nil {
 		http.Error(w, fmt.Sprintf("Tunnel '%s' not found or offline", subdomain), http.StatusNotFound)
 		return
 	}
-  
-	// Create a HTTP Reverse Proxy to forward the request to the correct Yamux stream
-	httpReverseProxy := &httputil.ReverseProxy{
-		Rewrite: func(req *httputil.ProxyRequest) {
-			// Ensure the request looks like a standard HTTP request before sending it down the tunnel
-			req.Out.URL.Scheme = "http"
-			req.Out.URL.Host = r.Host
-		},
-		Transport: &http.Transport{
-			// Custom DialContext to route the HTTP request through the Yamux session instead of the normal network stack
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return session.Open()
-			},
-		},
-	}
 
-	httpReverseProxy.ServeHTTP(w, r)
+	entry.proxy.ServeHTTP(w, r)
 }
 
 // Checks if the subdomain is available and reserves it if it is
@@ -205,10 +226,13 @@ func (s *TunnelServer) acquireSubdomainIfAvailable(name string) bool {
 }
 
 // Registers the subdomain with the actual session once it's established
-func (s *TunnelServer) registerSubdomain(name string, session *yamux.Session) {
+func (s *TunnelServer) registerSubdomain(name string, session *yamux.Session) *tunnelEntry {
+	entry := newTunnelEntry(session)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.tunnels[name] = session
+	s.tunnels[name] = entry
+	return entry
 }
 
 // Frees the subdomain so others can use it once the client disconnects
@@ -219,11 +243,12 @@ func (s *TunnelServer) freeSubdomain(name string) {
 }
 
 // Helper function to watch for session closure and free the subdomain
-func (s *TunnelServer) yamuxSessionCleanup(name string, sess *yamux.Session) {
-	<-sess.CloseChan()
+func (s *TunnelServer) yamuxSessionCleanup(name string, entry *tunnelEntry) {
+	<-entry.session.CloseChan()
 
 	fmt.Printf("Client %s disconnected. Freeing subdomain.\n", name)
 	s.freeSubdomain(name)
+	entry.transport.CloseIdleConnections()
 }
 
 func (s *TunnelServer) ConfigureACMEDefaults() {
