@@ -1,6 +1,8 @@
 # Wormhole
 **Wormhole allows you to expose local web servers sitting behind NATs or firewalls to the public internet securely. It is designed as a lightweight, single-binary alternative to tools like Ngrok or Cloudflare Tunnels.**
 
+## Why?
+
 ## Installation
 Download the latest standalone binary for your system directly from the links below.
 * **Windows:** [Download wormhole-windows-amd64.exe](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-windows-amd64.exe)
@@ -72,8 +74,10 @@ Open your browser and navigate to: http://joshua.localhost:443 (or your server's
 - In cases where the internet or wifi suddenly drops, the client might not get a chance to communicate the disconnect with the VPS, and the connection will still exist as a Ghost connection. We thus use yamux keepalives (ping-pong mechanism) on both the client and the server end so that the connections are always in sync.
 
 
-### 6. Testing Plan (real pain)
+### 6. Testing Plan
 <img width="3456" height="1024" alt="Wormhole diagrams(4)" src="https://github.com/user-attachments/assets/dbff950d-2733-4a8c-9e03-cbfba2475fdd" />
+<img width="2176" height="944" alt="Wormhole diagrams(5)" src="https://github.com/user-attachments/assets/9eeae93e-dddd-45c9-b880-44824ba81134" />
+
 <ul>
 	<li>The straightforward plan was to test the number of concurrent tunnels a standard server can handle and how much data can flow through it.</li>
 	<li>This is achieved by 2 test harnesses: a custom Go script to ramp up and do a load test for number of active tunnels and k6 for the data flow test.</li>
