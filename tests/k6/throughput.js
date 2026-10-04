@@ -52,6 +52,9 @@ export const options = {
   // insecureSkipTLSVerify keeps staging ACME certificates from failing the run.
   insecureSkipTLSVerify: __ENV.INSECURE === 'true',
   discardResponseBodies: true,
+  // p(99) isn't in k6's default summary stats, but the threshold below checks
+  // it - without this, the value that was evaluated never gets printed.
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
 
   scenarios: Object.fromEntries(
     RATES.map((rate, i) => [
