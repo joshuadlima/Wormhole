@@ -2,6 +2,12 @@
 **Wormhole allows you to expose local web servers sitting behind NATs or firewalls to the public internet securely. It is designed as a lightweight, single-binary alternative to tools like Ngrok or Cloudflare Tunnels.**
 
 ## Why?
+Machines behind NATs and firewalls can make outbound connections but can't accept inbound ones, which makes it hard to share a local dev server, receive webhooks, or self-host from a home network.
+
+<details>
+<summary>Why can't port forwarding or ssh -R be used instead?</summary>
+Router port forwarding needs router access and a public IP, and ssh -R works but leaves you to handle subdomain routing, TLS, reconnection, and server-side config yourself. Wormhole is a small, self-hostable reverse tunnel that handles those pieces.
+</details>
 
 ## Installation
 Download the latest standalone binary for your system directly from the links below.
