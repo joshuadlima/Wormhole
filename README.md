@@ -16,29 +16,45 @@ Download the latest standalone binary for your system directly from the links be
 * **Mac (Intel):** [Download wormhole-mac-intel](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-mac-intel)
 * **Linux:** [Download wormhole-linux-amd64](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-linux-amd64)
 
-## The Wormhole CLI (Usage)
-### 1. Clone the repo and build the binary, or install the latest binary directly from the links above.
-```bash
-    git clone https://github.com/joshuadlima/Wormhole.git
-    cd Wormhole
-    go build -o wormhole main.go
-```
+## The Wormhole Server (Setup)
+### 1. Domain on Cloudflare.
+The domain's DNS must be managed by Cloudflare, because the certificate is issued through the DNS-01 challenge.
+[Link to Cloudflare docs.](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/)
 
-### 2. Start the server.
-Run this on your cloud VPS or a central machine. It will open port 4443 for clients to connect, and port 443 for web visitors.
-```bash
-    ./wormhole server
-```
 
-### 3. Start the client.
-Run this on your local laptop to expose a local web app (e.g., running on port 4200) to the public internet.
-If you leave the --subdomain flag blank, Wormhole will automatically generate a secure, random 32-character hex string for you.
-```bash
-    ./wormhole client --subdomain joshua --local 4200
-```
+### 2. DNS records.
+Add two records for the VPS's public IP: A example.com and A *.example.com. Set both to DNS only (grey cloud). The orange-cloud proxy doesn't pass port 4443, which tunnel clients connect on, so the proxy would break the tunnels.
+[Link to Cloudflare docs - Add DNS Records.](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/#2-review-your-dns-records)
+<img width="1633" height="296" alt="image" src="https://github.com/user-attachments/assets/36104125-f490-4c73-a129-6ca42364e4db" />
 
-### 4. Visit your app!
-Open your browser and navigate to: http://joshua.localhost:443 (or your server's public IP/Domain).
+
+### 3. Cloudflare API token.
+In Cloudflare, go to My Profile → API Tokens → Create Token. Scope it to your zone with Zone → DNS → Edit, and add Zone → Zone → Read as well.
+
+
+### 4. Open The Ports 443 & 4443.
+Open TCP 443 (web visitors) and 4443 (tunnel clients) in the VPS provider's firewall and in the host firewall; for example, ufw allow 443,4443/tcp. (This step will depend on your provider eg. DigitalOcean, AWS, GCP etc.)
+
+
+### 5. Get the code and run it.
+SSH into the VPS and run the following.
+```bash
+sudo apt install -y git      # or your distro's equivalent
+git clone https://github.com/joshuadlima/Wormhole.git
+cd Wormhole
+./start-server.sh
+```
+Answer the prompts:
+DOMAINS: example.com,*.example.com
+PRODUCTION: N on the first run
+
+
+### 5. Check the certificate flow.
+Watch the log for the server to start and for certificate issuance to succeed. Staging certificates aren't trusted by browsers, but they confirm the token and DNS setup work without burning Let's Encrypt rate limits.
+
+
+### 6. Switch to production.
+Stop the server (Ctrl+C), set PRODUCTION=true in .env (or delete .env and re-run the script), and start it again. That's it!
 
 ## Design & Architecture
 <img width="1584" height="1232" alt="Wormhole diagrams(1)" src="https://github.com/user-attachments/assets/a6bfe769-fbd9-402b-bafc-dfd6244928e6" />
