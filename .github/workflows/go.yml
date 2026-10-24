@@ -24,9 +24,15 @@ jobs:
           - goos: linux
             goarch: amd64
             output: wormhole-client-linux-amd64
+          - goos: linux
+            goarch: arm64
+            output: wormhole-client-linux-arm64
           - goos: windows
             goarch: amd64
             output: wormhole-client-windows-amd64.exe
+          - goos: windows
+            goarch: arm64
+            output: wormhole-client-windows-arm64.exe
           - goos: darwin
             goarch: amd64
             output: wormhole-client-mac-intel

@@ -9,12 +9,25 @@ Machines behind NATs and firewalls can make outbound connections but can't accep
 Router port forwarding needs router access and a public IP, and ssh -R works but leaves you to handle subdomain routing, TLS, reconnection, and server-side config yourself. Wormhole is a small, self-hostable reverse tunnel that handles those pieces.
 </details>
 
-## Installation
-Download the latest standalone binary for your system directly from the links below.
-* **Windows:** [Download wormhole-windows-amd64.exe](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-windows-amd64.exe)
-* **Mac (Apple Silicon):** [Download wormhole-mac-silicon](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-mac-silicon)
-* **Mac (Intel):** [Download wormhole-mac-intel](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-mac-intel)
-* **Linux:** [Download wormhole-linux-amd64](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-linux-amd64)
+## The Wormhole Client (Installation)
+Download the latest standalone client binary for your system directly from the links below.
+* **Windows (x64):** [Download wormhole-client-windows-amd64.exe](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-windows-amd64.exe)
+* **Windows (ARM):** [Download wormhole-client-windows-arm64.exe](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-windows-arm64.exe)
+* **Mac (Apple Silicon):** [Download wormhole-client-mac-silicon](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-mac-silicon)
+* **Mac (Intel):** [Download wormhole-client-mac-intel](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-mac-intel)
+* **Linux (x64):** [Download wormhole-client-linux-amd64](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-linux-amd64)
+* **Linux (ARM):** [Download wormhole-client-linux-arm64](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-linux-arm64)
+
+The binaries are unsigned, so your OS may warn you the first time you run one.
+
+Then expose a local app (e.g. running on port 4200) through your server:
+```bash
+./wormhole-client-linux-amd64 --server example.com --subdomain myapp --local 4200
+```
+If `--subdomain` is left out, a random one is generated. Your app is then available at `https://myapp.example.com`.
+
+Prefer to build it yourself? With Go installed: `go install github.com/joshuadlima/Wormhole/cmd/client@latest` (the binary is named `client`).
+
 
 ## The Wormhole Server (Setup)
 ### 1. Domain on Cloudflare.
