@@ -19,7 +19,7 @@ Download the latest standalone binary for your system directly from the links be
 ## The Wormhole Server (Setup)
 ### 1. Domain on Cloudflare.
 The domain's DNS must be managed by Cloudflare, because the certificate is issued through the DNS-01 challenge.
-[Link to Cloudflare docs.](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/)
+[Link to Cloudflare docs - Add Domain to Cloudflare.](https://developers.cloudflare.com/dns/zone-setups/full-setup/setup/)
 
 
 ### 2. DNS records.
@@ -30,6 +30,7 @@ Add two records for the VPS's public IP: A example.com and A *.example.com. Set 
 
 ### 3. Cloudflare API token.
 In Cloudflare, go to My Profile → API Tokens → Create Token. Scope it to your zone with Zone → DNS → Edit, and add Zone → Zone → Read as well.
+<img width="1915" height="830" alt="image" src="https://github.com/user-attachments/assets/1565ff26-abe0-4f8b-a871-ea403c0d454d" />
 
 
 ### 4. Open The Ports 443 & 4443.
