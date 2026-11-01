@@ -25,7 +25,11 @@ NOTE - The binaries are unsigned, so your OS may warn you the first time you run
 ```
 If `--subdomain` is left out, a random one is generated. Your app is then available at `https://myapp.example.com`.
 
-### * Prefer to build it yourself? With Go installed: `go install github.com/joshuadlima/Wormhole/cmd/client@latest` (the binary is named `client`).
+### * Prefer to build it yourself? 
+With Go installed run the following (the binary is named `client`).
+```bash
+go install github.com/joshuadlima/Wormhole/cmd/client@latest
+```
 
 ## The Wormhole Server (Setup)
 ### 1. Domain on Cloudflare.
