@@ -17,7 +17,6 @@ Router port forwarding needs router access and a public IP, and ssh -R works but
 * **Mac (Intel):** [Download wormhole-client-mac-intel](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-mac-intel)
 * **Linux (x64):** [Download wormhole-client-linux-amd64](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-linux-amd64)
 * **Linux (ARM):** [Download wormhole-client-linux-arm64](https://github.com/joshuadlima/Wormhole/releases/latest/download/wormhole-client-linux-arm64)
-NOTE - The binaries are unsigned, so your OS may warn you the first time you run one.
 
 ### 2. Then expose a local app (e.g. running on port 4200) through your server:
 ```bash
@@ -78,17 +77,13 @@ Stop the server (Ctrl+C), set PRODUCTION=true in .env (or delete .env and re-run
 ### 1. TCP Multiplexing (Yamux)
 - Packs thousands of logical streams over a single network connection. Without multiplexing, we would need to establish several individual TCP network connections, which could result in resource exhaustion.
 
-### 2. Busybox pattern
-- Both the Client and Server logic are bundled into a single executable using Cobra. This is designed for self-hosting and ease of use.
-- Future scope: server flag to enable Redis store and authentication for a similar design as Ngrok or Cloudflare tunnels
-
-### 3. HTTP Reverse Proxy (Layer 7)
+### 2. HTTP Reverse Proxy (Layer 7)
 - The Server concurrently runs an HTTP Listener (default Port 443).
 - When a web visitor makes an HTTP request, the router parses the Host header, extracts the subdomain, looks up the corresponding yamux session in a thread-safe map, and opens a new binary stream.
 - Instead of opening a new internet connection, the httputil.ReverseProxy is injected with a custom DialContext that forces all plain-text HTTP data directly down the multiplexed Yamux stream.
 
-### 4. TLS certificate issuance
-- Adding TLS is important for a reverse-tunnel since several web features, packages, and services wouldn't work on an insecure page. The certmagic package has been used to automate the obtaining and renewal of TLS certificates.
+### 3. TLS certificate issuance
+- Adding TLS is important for a reverse tunnel since several web features, packages, and services wouldn't work on an insecure page. The certmagic package has been used to automate the obtaining and renewal of TLS certificates.
 
 <details>
 <summary>Click to dive deeper.</summary>
@@ -107,12 +102,12 @@ Stop the server (Ctrl+C), set PRODUCTION=true in .env (or delete .env and re-run
 </details>
 
 
-### 5. Client-side backoff logic & Ghost connection handling
+### 4. Client-side backoff logic & Ghost connection handling
 - Several network hiccups and internet issues could cause the TCP connection to drop. In such cases, we shouldn't make the client reconnect manually. We thus wrap the connection logic in a loop with a exponential backoff retry mechanism so that the connection can retry and fix itself.
 - In cases where the internet or wifi suddenly drops, the client might not get a chance to communicate the disconnect with the VPS, and the connection will still exist as a Ghost connection. We thus use yamux keepalives (ping-pong mechanism) on both the client and the server end so that the connections are always in sync.
 
 
-### 6. Testing Plan
+### 5. Testing Plan
 <img width="3456" height="1024" alt="Wormhole diagrams(4)" src="https://github.com/user-attachments/assets/dbff950d-2733-4a8c-9e03-cbfba2475fdd" />
 <img width="2176" height="944" alt="Wormhole diagrams(5)" src="https://github.com/user-attachments/assets/9eeae93e-dddd-45c9-b880-44824ba81134" />
 
